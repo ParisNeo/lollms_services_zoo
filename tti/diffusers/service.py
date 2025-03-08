@@ -93,8 +93,29 @@ class LollmsDiffusers(LollmsTTI):
         """
         service_config = TypedConfig(
             ConfigTemplate([
-                {"name":"model", "type":"str", "value":"v2ray/stable-diffusion-3-medium-diffusers", "help":"The model to be used"},
+                {
+                    "name": "model",
+                    "type": "str",
+                    "value": "v2ray/stable-diffusion-3-medium-diffusers",
+                    "options": [
+                        "v2ray/stable-diffusion-3-medium-diffusers",
+                        "runwayml/stable-diffusion-v1-5",
+                        "stabilityai/stable-diffusion-2-1",
+                        "CompVis/stable-diffusion-v1-4",
+                        "prompthero/openjourney",
+                        "StabilityAI/stable-diffusion-2-base",
+                        "dreamlike-art/dreamlike-photoreal-2.0",
+                        "stabilityai/stable-diffusion-xl-base-1.0",
+                        "stabilityai/stable-diffusion-3-medium",
+                        "runwayml/stable-diffusion-v1-4",
+                        "hakurei/waifu-diffusion",
+                        "Lykon/dreamshaper-8"
+                    ],
+                    "help": "The model to be used"
+                },
                 {"name":"wm", "type":"str", "value":"lollms", "help":"The water marking"},
+                {"name":"diffusers_offloading_mode", "type":"str", "value":"lollms", "options":["no_offload","sequential_cpu_offload","model_cpu_offload"], "help":"The water marking"},
+                
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
@@ -111,7 +132,7 @@ class LollmsDiffusers(LollmsTTI):
         if not pm.is_installed("diffusers"):
             pm.install("diffusers")
         
-        super().__init__("diffusers",app)
+        super().__init__("diffusers",app,service_config, output_folder)
         self.ready = False
         # Get the current directory
         lollms_paths = app.lollms_paths
@@ -123,7 +144,9 @@ class LollmsDiffusers(LollmsTTI):
         self.tti_models_dir = self.diffusers_folder / "models"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.tti_models_dir.mkdir(parents=True, exist_ok=True)
+        self.settings_updated()
 
+    def settings_updated(self):
         ASCIIColors.red("")       
         ASCIIColors.red("   _           _ _                    _ _  __  __                          ")
         ASCIIColors.red("  | |         | | |                  | (_)/ _|/ _|                         ")
@@ -153,23 +176,16 @@ class LollmsDiffusers(LollmsTTI):
                 )
                 self.iti_model = None
             
-            # AutoPipelineForText2Image
-            # self.tti_model = StableDiffusionPipeline.from_pretrained(
-            #     "CompVis/stable-diffusion-v1-4", torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
-            #     use_safetensors=True,
-            # ) # self.service_config.model
-            # Enable memory optimizations.
             try:
-                if app.config.diffusers_offloading_mode=="sequential_cpu_offload":
+                if self.service_config.diffusers_offloading_mode=="sequential_cpu_offload":
                     self.tti_model.enable_sequential_cpu_offload()
-                elif app.coinfig.diffusers_offloading_mode=="model_cpu_offload":
+                elif self.service_config.diffusers_offloading_mode=="model_cpu_offload":
                     self.tti_model.enable_model_cpu_offload()
             except:
                 pass
         except Exception as ex:
             self.tti_model= None
             trace_exception(ex)
-
 
     def install_diffusers(self):
         root_dir = self.app.lollms_paths.personal_path
@@ -276,7 +292,25 @@ class LollmsDiffusers(LollmsTTI):
             generator = torch.Generator("cuda").manual_seed(seed)
             image = self.tti_model(positive_prompt, negative_prompt=negative_prompt, height=height, width=width, guidance_scale=scale, num_inference_steps=steps, generator=generator).images[0]
         else:
-            image = self.tti_model(positive_prompt, negative_prompt=negative_prompt, height=height, width=width, guidance_scale=scale, num_inference_steps=steps).images[0]
+            # Define a callback function to update progress
+            progress_bar = tqdm(total=steps, desc="Generating Image")
+            
+            def callback(step: int, timestep: int, tensor):
+                progress_bar.update(1)
+                
+            # Generate image with callback
+            image = self.tti_model(
+                positive_prompt,
+                negative_prompt=negative_prompt,
+                height=height,
+                width=width,
+                guidance_scale=scale,
+                num_inference_steps=steps,
+                callback=callback,
+                callback_steps=1
+            ).images[0]
+            
+            progress_bar.close()            
         # Save the image
         image.save(fn)
         return fn, {"prompt":positive_prompt, "negative_prompt":negative_prompt}

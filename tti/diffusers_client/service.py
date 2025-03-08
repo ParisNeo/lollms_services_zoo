@@ -90,7 +90,13 @@ class LollmsDiffusersClient(LollmsTTI):
                     "value": "lollms",
                     "help": "Watermarking text or identifier to be used in the service."
                 },
-                {"name":"model", "type":"str", "value":"v2ray/stable-diffusion-3-medium-diffusers", "help":"The model to be used"},
+                {
+                        "name":"model", 
+                        "type":"str", 
+                        "value":"v2ray/stable-diffusion-3-medium-diffusers",
+                        "options": ["v2ray/stable-diffusion-3-medium-diffusers"]
+                        
+                        "help":"The model to be used"},
                 {"name":"wm", "type":"str", "value":"lollms", "help":"The water marking"},
             ]),
             BaseConfig(config={
@@ -98,7 +104,7 @@ class LollmsDiffusersClient(LollmsTTI):
             })
         )
 
-        super().__init__("diffusers_client", app, service_config)    
+        super().__init__("diffusers_client", app,service_config, output_folder)    
         self.ready = False
         # Get the current directory
         lollms_paths = app.lollms_paths
@@ -122,6 +128,8 @@ class LollmsDiffusersClient(LollmsTTI):
         ASCIIColors.green("                              ______                                       ")
         ASCIIColors.green("                             |______|                                      ")
 
+    def settings_updated(self):
+        pass
 
     @staticmethod
     def verify(app:LollmsApplication):

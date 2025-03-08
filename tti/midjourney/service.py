@@ -110,11 +110,8 @@ class LollmsMidjourney(LollmsTTI):
         super().__init__("midjourney", app, service_config)
         self.output_folder = output_folder
 
-        self.session = requests.Session()
-        self.headers = {
-            "Authorization": f"Bearer {self.service_config.api_key}",
-            "Content-Type": "application/json"
-        }
+        self.settings_updated()
+        
     def settings_updated(self):
         self.session = requests.Session()
         self.headers = {

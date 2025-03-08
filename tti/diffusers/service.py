@@ -20,20 +20,19 @@ from lollms.utilities import git_pull
 from tqdm import tqdm
 
 import pipmaster as pm
+# Install required libraries if not already present
 if not pm.is_installed("torch"):
-    ASCIIColors.yellow("Diffusers: Torch not found. Installing it")
-    pm.install_multiple(["torch","torchvision","torchaudio"], "https://download.pytorch.org/whl/cu121", force_reinstall=True)
-
-import torch
-if not torch.cuda.is_available():
-    ASCIIColors.yellow("Diffusers: Torch not using cuda. Reinstalling it")
-    pm.install_multiple(["torch","torchvision","torchaudio"], "https://download.pytorch.org/whl/cu121", force_reinstall=True)
-if not pm.is_installed("transformers"):
-    pm.install("transformers")
-
+    pm.install_multiple(["torch","torchvision"," torchaudio"], "https://download.pytorch.org/whl/cu126")  # Adjust CUDA version as needed
 if not pm.is_installed("diffusers"):
     pm.install("diffusers")
+if not pm.is_installed("transformers"):
+    pm.install("transformers")
+if not pm.is_installed("accelerate"):
+    pm.install("accelerate")
+if not pm.is_installed("imageio-ffmpeg"):
+    pm.install("imageio-ffmpeg")
 
+import torch
 
 
 def adjust_dimensions(value: int) -> int:
@@ -109,11 +108,13 @@ class LollmsDiffusers(LollmsTTI):
                         "stabilityai/stable-diffusion-3-medium",
                         "runwayml/stable-diffusion-v1-4",
                         "hakurei/waifu-diffusion",
-                        "Lykon/dreamshaper-8"
+                        "Lykon/dreamshaper-8",
+                        "stabilityai/stable-diffusion-3.5-large"
                     ],
                     "help": "The model to be used"
                 },
                 {"name":"wm", "type":"str", "value":"lollms", "help":"The water marking"},
+                {"name":"use_gpu", "type":"bool", "value":True, "help":"Activate GPU usage"},
                 {"name":"diffusers_offloading_mode", "type":"str", "value":"lollms", "options":["no_offload","sequential_cpu_offload","model_cpu_offload"], "help":"The water marking"},
                 
             ]),
@@ -121,19 +122,6 @@ class LollmsDiffusers(LollmsTTI):
                 "api_key": "",     # use avx2
             })
         )
-
-        super().__init__("diffusers", app, service_config)
-        if not pm.is_installed("torch"):
-            pm.install("torch torchvision torchaudio", "https://download.pytorch.org/whl/cu121")
-
-        if not pm.is_installed("transformers"):
-            pm.install("transformers")
-
-        if not pm.is_installed("diffusers"):
-            pm.install("diffusers")
-        
-        super().__init__("diffusers",app,service_config, output_folder)
-        self.ready = False
         # Get the current directory
         lollms_paths = app.lollms_paths
         root_dir = lollms_paths.personal_path
@@ -144,6 +132,8 @@ class LollmsDiffusers(LollmsTTI):
         self.tti_models_dir = self.diffusers_folder / "models"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.tti_models_dir.mkdir(parents=True, exist_ok=True)
+
+        super().__init__("diffusers", app, service_config)
         self.settings_updated()
 
     def settings_updated(self):
@@ -167,6 +157,7 @@ class LollmsDiffusers(LollmsTTI):
                     self.service_config.model, torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
                     use_safetensors=True,
                 )
+                
                 self.iti_model = None
             else:
                 from diffusers import AutoPipelineForText2Image # AutoPipelineForImage2Image#PixArtSigmaPipeline
@@ -177,12 +168,14 @@ class LollmsDiffusers(LollmsTTI):
                 self.iti_model = None
             
             try:
+                if self.service_config.use_gpu:
+                    self.tti_model.to("cuda")
                 if self.service_config.diffusers_offloading_mode=="sequential_cpu_offload":
                     self.tti_model.enable_sequential_cpu_offload()
                 elif self.service_config.diffusers_offloading_mode=="model_cpu_offload":
                     self.tti_model.enable_model_cpu_offload()
-            except:
-                pass
+            except Exception as ex:
+                trace_exception(ex)
         except Exception as ex:
             self.tti_model= None
             trace_exception(ex)
@@ -246,17 +239,16 @@ class LollmsDiffusers(LollmsTTI):
                 self,
                 positive_prompt,
                 negative_prompt,
+                width=512,
+                height=512,
                 sampler_name="",
                 seed=-1,
                 scale=7.5,
                 steps=20,
                 img2img_denoising_strength=0.9,
-                width=512,
-                height=512,
                 restore_faces=True,
                 output_path=None
                 ):
-        import torch
         if sampler_name!="":
             sc = self.get_scheduler_by_name(sampler_name)
             if sc:

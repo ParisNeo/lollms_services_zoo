@@ -107,6 +107,7 @@ class LollmsCogVideoX(LollmsTTV):
         """
         output_path = Path(output_dir) if output_dir else self.output_folder
         output_path.mkdir(exist_ok=True, parents=True)
+        output_filename= None
 
         # Handle unsupported parameters
         if negative_prompt:
@@ -133,7 +134,7 @@ class LollmsCogVideoX(LollmsTTV):
             ASCIIColors.info("Generating video with CogVideoX...")
             start_time = time.time()
             video_frames = self.pipeline(**gen_params).frames[0]  # CogVideoX returns a list of frame batches
-            output_filename = find_next_available_filename(output_path, "cogvideox_output.mp4")
+            output_filename = find_next_available_filename(output_path, "cogvideox_output_",".mp4")
             export_to_video(video_frames, output_filename, fps=8)
             elapsed_time = time.time() - start_time
             ASCIIColors.success(f"Video generated and saved to {output_filename} in {elapsed_time:.2f} seconds")

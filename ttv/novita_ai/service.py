@@ -33,7 +33,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
                 {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast", "wan-t2v"], "help":"The engine name"},
                 {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"},
-                {"name":"n_frames","type":"int","value":129, "help":"The number of frames in the video"},
+                {"name":"n_frames","type":"int","value":85, "help":"The number of frames in the video"},
                 {"name":"guidance_scale", "type":"float", "value":7.5, "help":"The guidance scale for the generation"},
                 {"name":"loras", "type":"str", "value":None, "help":"List of LoRA configurations"},
                 {"name":"embeddings", "type":"str", "value":None, "help":"List of embedding configurations"},
@@ -109,7 +109,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             nb_frames =self.service_config.n_frames
 
         if self.service_config.generation_engine=="hunyuan-video-fast":
-            width, height, nb_frames, steps = self.pin_dimensions_frames_steps(width, height, nb_frames, steps)
+            width, height, nb_frames, steps = self.pin_dimensions_frames_steps_hunyuan(width, height, nb_frames, steps)
             url = "https://api.novita.ai/v3/async/hunyuan-video-fast"
 
             payload = {
@@ -128,7 +128,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
 
             response = requests.request("POST", url, json=payload, headers=headers)
         elif self.service_config.generation_engine=="wan-t2v":
-            width, height, nb_frames, steps = self.pin_dimensions_frames_steps(width, height, nb_frames, steps)
+            width, height, nb_frames, steps = self.pin_dimensions_frames_steps_wan_t2v(width, height, nb_frames, steps)
             url = "https://api.novita.ai/v3/async/wan-t2v"
 
             payload = {
@@ -212,8 +212,35 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 self.download_video(infos["videos"][0]["video_url"], file_name )
                 return file_name
         return None
-    
-    def pin_dimensions_frames_steps(self, width, height, nframes, steps):
+    def pin_dimensions_frames_steps_wan_t2v(self, width, height, nframes, steps):
+        # Supported widths
+        standard_widths = [480, 720, 832, 1024, 1280]
+        
+        # Width-to-height mapping
+        width_height_map = {
+            480: [832],     # 480 width supports 832 height
+            720: [1280],    # 720 width supports 1280 height
+            832: [480],     # 832 width supports 480 height
+            1024: [1024],   # 1024 width supports 1024 height
+            1280: [720]     # 1280 width supports 720 height
+        }
+        
+        # Supported frames
+        standard_frames = [81]
+        
+        # Pin the width to the nearest standard width
+        pinned_width = min(standard_widths, key=lambda x: abs(x - width))
+        
+        # Get the supported height for the pinned width and pin the height
+        supported_heights = width_height_map[pinned_width]
+        pinned_height = min(supported_heights, key=lambda x: abs(x - height))
+        
+        # Pin the frames (always 81 since it's the only supported value)
+        pinned_frames = standard_frames[0]  # Simply set to 81
+        
+        return pinned_width, pinned_height, pinned_frames
+
+    def pin_dimensions_frames_steps_hunyuan(self, width, height, nframes, steps):
         # Supported widths
         standard_widths = [480, 640, 720, 864, 1280]
         
@@ -246,6 +273,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         pinned_steps = max(min_steps, min(max_steps, steps))
         
         return pinned_width, pinned_height, pinned_nframes, pinned_steps
+    
+
     def generate_video_by_frames(self, prompts: List[str], frames: List[int], negative_prompt: str, fps: int = 8, 
                         sd_model_name: str = "",
                         height: int = 512,

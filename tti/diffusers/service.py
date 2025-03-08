@@ -306,8 +306,8 @@ class LollmsDiffusers(LollmsTTI):
                 width=width,
                 guidance_scale=scale,
                 num_inference_steps=steps,
-                callback=callback,
-                callback_steps=1
+                #callback=callback,
+                #callback_steps=1
             ).images[0]
             
             progress_bar.close()            

@@ -1,4 +1,4 @@
 class_name: LollmsSD
-caption: autosd
+caption: Automatic1111_sd
 help: |
   automatic1111's stable diffusion

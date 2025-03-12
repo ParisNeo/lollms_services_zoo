@@ -149,7 +149,6 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
 
             response = requests.request("POST", url, json=payload, headers=headers)
         elif self.service_config.generation_engine=="stable_diffusion":
-            print(response.text)
             if model_name=="":
                 model_name = self.sd_model_name
 

@@ -69,7 +69,7 @@ class LollmsNovitaAi(LollmsTTI):
 
         super().__init__("novita_ai", app, service_config, output_folder)
         models = self.getModels()
-        service_config.config_template["model_name"]["options"] = [model["model_name"] for model in models]
+        service_config.config_template["model_name"]["options"] = [model["model_name"] for model in models if model["base_model_type"]==""]
 
     def getModels(self):
         """

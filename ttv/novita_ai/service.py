@@ -8,7 +8,7 @@ import requests
 import json
 import os
 import time
-
+from ascii_colors import ASCIIColors
 class LollmsNovitaAITextToVideo(LollmsTTV):
     """
     A binding for the Novita.ai Text-to-Video API.
@@ -50,7 +50,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         self.base_url = "https://api.novita.ai/v3/async"
 
         models = self.getModels()
-        service_config.config_template["sd_model_name"]["options"] = [model["model_name"] for model in models]
+        service_config.config_template["sd_model_name"]["options"] = [model["model_name"] for model in models if model["base_model_type"]==""]
 
     def settings_updated(self):
         models = self.getModels()
@@ -79,7 +79,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         steps: int = 20,
         seed: int = -1,
         nb_frames: int = None,
-        output_dir:str | Path =None,
+        output_folder:str | Path =None,
+        output_file_name=None
     ) -> str:
         """
         Generates a video from text prompts using the Novita.ai API.
@@ -101,8 +102,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         Returns:
             str: The task_id for retrieving the generated video.
         """
-        if output_dir is None:
-            output_dir = self.output_folder
+        if output_folder is None:
+            output_folder = self.output_folder
 
         if nb_frames is None:
             nb_frames =self.service_config.n_frames
@@ -127,7 +128,10 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
 
             response = requests.request("POST", url, json=payload, headers=headers)
         elif self.service_config.generation_engine=="wan-t2v":
-            width, height, nb_frames, steps = self.pin_dimensions_frames_steps_wan_t2v(width, height, nb_frames, steps)
+            width, height, nb_frames = self.pin_dimensions_frames_wan_t2v(width, height, nb_frames)
+            ASCIIColors.yellow(f"Pinned dimentions:")
+            ASCIIColors.yellow(f"width:{width}")
+            ASCIIColors.yellow(f"height:{height}")
             url = "https://api.novita.ai/v3/async/wan-t2v"
 
             payload = {
@@ -135,7 +139,6 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 "width": width,
                 "height": height,
                 "seed": seed,
-                "steps": steps,
                 "prompt": prompt,
                 "frames": nb_frames
             }
@@ -145,7 +148,6 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             }
 
             response = requests.request("POST", url, json=payload, headers=headers)
-            
         elif self.service_config.generation_engine=="stable_diffusion":
             print(response.text)
             if model_name=="":
@@ -205,13 +207,17 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 done = True
             time.sleep(1)
         if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
-            if output_dir:
-                output_dir = Path(output_dir)
-                file_name = output_dir/find_next_available_filename(output_dir, "vid_novita_","mp4")  # You can change the filename if needed
+            if output_folder:
+                output_folder = Path(output_folder)
+                if output_file_name:
+                    file_name = output_folder/output_file_name # You can change the filename if needed
+                else:
+                    file_name = output_folder/find_next_available_filename(output_folder, "vid_novita_","mp4")  # You can change the filename if needed
+                # You can change the filename if needed
                 self.download_video(infos["videos"][0]["video_url"], file_name )
                 return file_name
         return None
-    def pin_dimensions_frames_steps_wan_t2v(self, width, height, nframes, steps):
+    def pin_dimensions_frames_wan_t2v(self, width, height, nframes):
         # Supported widths
         standard_widths = [480, 720, 832, 1024, 1280]
         
@@ -280,7 +286,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                         width: int = 512,
                         steps: int = 20,
                         seed: int = -1,
-                        output_dir:str | Path =None,
+                        output_folder:str | Path =None,
                        ) -> str:
         """
         Generates a video from a list of prompts and corresponding frames.
@@ -299,8 +305,18 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         """
         if sd_model_name=="":
             sd_model_name = self.sd_model_name
-        if output_dir is None:
-            output_dir = self.output_folder
+        if output_folder is None:
+            output_folder = self.output_folder
+
+
+        url = f"{self.base_url}/txt2video"
+        headers = {
+            "Authorization": f"Bearer {self.service_config.api_key}",
+            "Content-Type": "application/json",
+        }
+        print(response.text)
+        if model_name=="":
+            model_name = self.sd_model_name
 
 
         url = f"{self.base_url}/txt2video"
@@ -313,24 +329,18 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 "response_video_type": "mp4", # gif
                 "enterprise_plan": {"enabled": False}
             },
-            "sd_model_name": sd_model_name,
+            "sd_model_name": model_name,
             "height": height,
             "width": width,
             "steps": steps,
-            "prompts": [
-                {
-                    "frames": nb_frames,
-                    "prompt": prompt,
-                    
-                } for nb_frames, prompt in zip(prompts, frames)
-            ],
+            "prompts": prompts, #[{"frames": nb_frames,"prompt": prompt}],
             "negative_prompt": negative_prompt,
-            "guidance_scale": guidance_scale,
+            "guidance_scale": self.service_config.guidance_scale,
             "seed": seed,
-            "loras": [],
-            "embeddings": [],
-            "closed_loop": closed_loop,
-            "clip_skip": clip_skip
+            "loras": self.service_config.loras,
+            "embeddings": self.service_config.embeddings,
+            "closed_loop": self.service_config.closed_loop,
+            "clip_skip": self.service_config.clip_skip
         }  
         # Remove None values from the payload to avoid sending null fields
         payload = {k: v for k, v in payload.items() if v is not None}
@@ -354,9 +364,9 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 done = True
             time.sleep(1)
         if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
-            if output_dir:
-                output_dir = Path(output_dir)
-                file_name = output_dir/find_next_available_filename(output_dir, "vid_novita_","mp4")  # You can change the filename if needed
+            if output_folder:
+                output_folder = Path(output_folder)
+                file_name = output_folder/find_next_available_filename(output_folder, "vid_novita_","mp4")  # You can change the filename if needed
                 self.download_video(infos["videos"][0]["video_url"], file_name )
                 return file_name
         return None

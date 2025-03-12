@@ -318,7 +318,14 @@ class LollmsSD(LollmsTTI):
                     "type": "bool",
                     "value": False,
                     "help": "If set to true, the server will be accessible from outside your local machine (e.g., over the internet)."
+                },
+                {
+                    "name": "restore_faces",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true,faces are going to be restored after generation."
                 }
+                
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
@@ -427,17 +434,20 @@ class LollmsSD(LollmsTTI):
                 positive_prompt,
                 negative_prompt,
                 sampler_name="Euler",
-                seed=-1,
-                scale=7.5,
-                steps=20,
-                img2img_denoising_strength=0.9,
-                width=512,
-                height=512,
-                restore_faces=True,
-                output_path=None
+                seed=None,
+                scale=None,
+                steps=None,
+                width=None,
+                height=None,
+                output_dir=None,
+                output_file_name=None
                 ):
-        if output_path is None:
-            output_path = self.output_dir
+        
+        scale = scale if scale else self.service_config.guidance_scale
+        steps = steps if steps else self.service_config.steps
+        seed = seed if seed else self.service_config.seed
+        output_dir = output_dir if output_dir else self.output_dir
+
         infos = {}
         img_paths = []
 
@@ -452,7 +462,7 @@ class LollmsSD(LollmsTTI):
                         width=width,
                         height=height,
                         tiling=False,
-                        restore_faces=restore_faces,
+                        restore_faces=self.service_config.restore_faces,
                         styles=None, 
                         script_name="",
                         )
@@ -462,7 +472,7 @@ class LollmsSD(LollmsTTI):
                 info: dict
             """
             for img in generated.images:
-                img_paths.append(self.saveImage(img, output_path))
+                img_paths.append(self.saveImage(img, output_dir,output_file_name))
             infos = generated.info
         except Exception as ex:
             ASCIIColors.error("Couldn't generate the image")
@@ -589,15 +599,13 @@ class LollmsSD(LollmsTTI):
     def loadImage(self, file_path:str)->Image:
         return Image.open(file_path)
 
-    def saveImage(self, image:Image, save_folder=None):
+    def saveImage(self, image:Image, save_folder=None, output_file_name=None):
         if save_folder is None:
             save_folder = self.output_dir    
         save_folder = Path(save_folder)
-        if save_folder.is_dir():
-            image_name = self.get_available_image_name(save_folder, self.service_config.wm)
-            image_path = os.path.join(save_folder, image_name)
-        else:
-            image_path = save_folder
+        if not output_file_name:
+            output_file_name = self.get_available_image_name(save_folder, self.service_config.wm)
+        image_path = Path(save_folder)/output_file_name
         image.save(image_path)
         return image_path
 

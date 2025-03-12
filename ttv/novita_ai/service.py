@@ -60,9 +60,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         """
         Gets the list of models
         """
-        url = "https://api.novita.ai/v3/model"
+        url = "https://api.novita.ai/v3/model?filter.types=checkpoint"
         headers = {
-            "Content-Type": "<content-type>",
             "Authorization": f"Bearer {self.service_config.api_key}"
         }
 

@@ -66,18 +66,16 @@ class LollmsDalle(LollmsTTI):
                 positive_prompt,
                 negative_prompt,
                 sampler_name="Euler",
-                seed=-1,
-                scale=7.5,
-                steps=20,
-                img2img_denoising_strength=0.9,
-                width=512,
-                height=512,
-                restore_faces=True,
-                output_path=None,
-                generation_engine=None
+                seed=None,
+                scale=None,
+                steps=None,
+                width=None,
+                height=None,
+                output_folder=None,
+                output_file_name=None
                 ):
-        if output_path is None:
-            output_path = self.output_path
+        if output_folder is None:
+            output_folder = self.output_folder
         if generation_engine is None:
             generation_engine = self.service_config.generation_engine
         if not PackageManager.check_package_installed("openai"):
@@ -121,8 +119,8 @@ class LollmsDalle(LollmsTTI):
             
             )
         # download image to outputs
-        output_dir = Path(output_path)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_folder = Path(output_folder)
+        output_folder.mkdir(parents=True, exist_ok=True)
         image_url = response.data[0].url
 
         # Get the image data from the URL
@@ -130,11 +128,15 @@ class LollmsDalle(LollmsTTI):
 
         if response.status_code == 200:
             # Generate the full path for the image file
-            file_name = output_dir/find_next_available_filename(output_dir, "img_dalle_")  # You can change the filename if needed
+            if output_file_name:
+                file_name = output_folder/output_file_name  # You can change the filename if needed
+            else:
+                file_name = output_folder/find_next_available_filename(output_folder, "img_dalle_")  # You can change the filename if needed
 
             # Save the image to the specified folder
             with open(file_name, "wb") as file:
                 file.write(response.content)
+                
             ASCIIColors.yellow(f"Image saved to {file_name}")
         else:
             ASCIIColors.red("Failed to download the image")

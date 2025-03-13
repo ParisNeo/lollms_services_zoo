@@ -272,6 +272,12 @@ class LollmsSD(LollmsTTI):
                     "help": "The maximum number of retries to attempt before determining that the service is unavailable."
                 },
                 {
+                    "name": "guidance_scale",
+                    "type": "float",
+                    "value": 7.5,
+                    "help": "The guidance scale for diffusion process."
+                },
+                {
                     "name": "sampler",
                     "type": "str",
                     "value": "Euler a",

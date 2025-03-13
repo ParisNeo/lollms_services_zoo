@@ -290,6 +290,12 @@ class LollmsSD(LollmsTTI):
                     "help": "The number of steps to use in the generation process. Higher values may improve quality but increase processing time."
                 },
                 {
+                    "name": "seed",
+                    "type": "int",
+                    "value": -1,
+                    "help": "Random numbers generator seed."
+                },
+                {
                     "name": "use_https",
                     "type": "bool",
                     "value": False,

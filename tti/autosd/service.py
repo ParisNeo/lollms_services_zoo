@@ -509,10 +509,10 @@ class LollmsSD(LollmsTTI):
                             width=512,
                             height=512,
                             restore_faces=True,
-                            output_path=None
+                            output_folder=None,
+                            output_file_name=None
                             ) -> List[Dict[str, str]]:
-        if output_path is None:
-            output_path = self.output_folder
+        output_folder = output_folder if output_folder else self.output_folder
         infos = {}
         img_paths = []
         try:
@@ -538,7 +538,11 @@ class LollmsSD(LollmsTTI):
                 info: dict
             """
             for img in generated.images:
-                img_paths.append(self.saveImage(img, output_path))
+                if output_file_name:
+                    file_name = output_folder/output_file_name # You can change the filename if needed
+                else:
+                    file_name = output_folder/find_next_available_filename(output_folder, "img_sd_","png")  # You can change the filename if needed
+                img_paths.append(self.saveImage(img, file_name))
             infos = generated.info
         except Exception as ex:
             ASCIIColors.error("Couldn't generate the image")
@@ -616,14 +620,8 @@ class LollmsSD(LollmsTTI):
     def loadImage(self, file_path:str)->Image:
         return Image.open(file_path)
 
-    def saveImage(self, image:Image, save_folder=None, output_file_name=None):
-        if save_folder is None:
-            save_folder = self.output_folder    
-        save_folder = Path(save_folder)
-        if not output_file_name:
-            output_file_name = self.get_available_image_name(save_folder, self.service_config.wm)
-        image_path = Path(save_folder)/output_file_name
-        image.save(image_path)
+    def saveImage(self, image:Image, save_file_path=None):
+        image.save(save_file_path)
         return image_path
 
 

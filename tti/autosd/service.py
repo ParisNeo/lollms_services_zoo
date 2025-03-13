@@ -350,8 +350,8 @@ class LollmsSD(LollmsTTI):
         self.sd_base_url = self.service_config.base_url+"/sdapi/v1"
         shared_folder = root_dir/"shared"
         self.sd_folder = shared_folder / "auto_sd"
-        self.output_dir = root_dir / "outputs/sd"
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.output_folder = root_dir / "outputs/sd"
+        self.output_folder.mkdir(parents=True, exist_ok=True)
 
        
         ASCIIColors.red("                                                       ")
@@ -439,14 +439,14 @@ class LollmsSD(LollmsTTI):
                 steps=None,
                 width=None,
                 height=None,
-                output_dir=None,
+                output_folder=None,
                 output_file_name=None
                 ):
         
         scale = scale if scale else self.service_config.guidance_scale
         steps = steps if steps else self.service_config.steps
         seed = seed if seed else self.service_config.seed
-        output_dir = output_dir if output_dir else self.output_dir
+        output_folder = output_folder if output_folder else self.output_folder
 
         infos = {}
         img_paths = []
@@ -472,7 +472,11 @@ class LollmsSD(LollmsTTI):
                 info: dict
             """
             for img in generated.images:
-                img_paths.append(self.saveImage(img, output_dir,output_file_name))
+                if output_file_name:
+                    file_name = output_folder/output_file_name # You can change the filename if needed
+                else:
+                    file_name = output_folder/find_next_available_filename(output_folder, "img_sd_","png")  # You can change the filename if needed
+                img_paths.append(self.saveImage(img, file_name))
             infos = generated.info
         except Exception as ex:
             ASCIIColors.error("Couldn't generate the image")
@@ -495,7 +499,7 @@ class LollmsSD(LollmsTTI):
                             output_path=None
                             ) -> List[Dict[str, str]]:
         if output_path is None:
-            output_path = self.output_dir
+            output_path = self.output_folder
         infos = {}
         img_paths = []
         try:
@@ -601,7 +605,7 @@ class LollmsSD(LollmsTTI):
 
     def saveImage(self, image:Image, save_folder=None, output_file_name=None):
         if save_folder is None:
-            save_folder = self.output_dir    
+            save_folder = self.output_folder    
         save_folder = Path(save_folder)
         if not output_file_name:
             output_file_name = self.get_available_image_name(save_folder, self.service_config.wm)
@@ -1513,7 +1517,7 @@ class ControlNetInterface:
             styles = []
             
         if save_folder is None:
-            save_folder = self.output_dir
+            save_folder = self.output_folder
 
         data = {
             "enable_hr": False,

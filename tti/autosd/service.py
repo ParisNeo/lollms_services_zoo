@@ -622,7 +622,7 @@ class LollmsSD(LollmsTTI):
 
     def saveImage(self, image:Image, save_file_path=None):
         image.save(save_file_path)
-        return image_path
+        return save_file_path
 
 
     def txt2img(

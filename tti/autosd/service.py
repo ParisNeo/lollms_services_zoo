@@ -11,6 +11,7 @@ import sys
 from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
 from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
+from lollms.utilities import PackageManager, find_next_available_filename
 import time
 import io
 import sys

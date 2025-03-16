@@ -32,6 +32,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         service_config = TypedConfig(
             ConfigTemplate([
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
+                {"name":"response_video_type", "type":"str", "value":"mp4", "options":["mp4","gif"], "help":"The generated video type (mp4 or gif)"},
+                
                 {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast", "wan-t2v"], "help":"The engine name"},
                 {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"},
                 {"name":"n_frames","type":"int","value":85, "help":"The number of frames in the video"},
@@ -51,11 +53,11 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         self.base_url = "https://api.novita.ai/v3/async"
 
         models = self.getModels()
-        service_config.config_template["sd_model_name"]["options"] = [model["model_name"] for model in models if model["base_model_type"]==""]
+        service_config.config_template["sd_model_name"]["options"] = ["darkSushiMixMix_225D_64380.safetensors"]+ [model["model_name"] for model in models if model["base_model_type"]==""]
 
     def settings_updated(self):
         models = self.getModels()
-        self.service_config.config_template["sd_model_name"]["options"] = models
+        self.service_config.config_template["sd_model_name"]["options"] = ["darkSushiMixMix_225D_64380.safetensors"]+ [model["model_name"] for model in models if model["base_model_type"]==""]
 
     def getModels(self):
         """
@@ -69,6 +71,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         response = requests.request("GET", url, headers=headers)
         js = response.json()
         return js["models"]
+
     
     def generate_video(
         self,
@@ -150,6 +153,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
 
             response = requests.request("POST", url, json=payload, headers=headers)
         elif self.service_config.generation_engine=="stable_diffusion":
+            width, height, nb_frames = self.pin_dimensions_frames_stable_diffusion(width, height, nb_frames)
             if model_name=="":
                 model_name = self.sd_model_name
 
@@ -161,10 +165,10 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             }
             payload = {
                 "extra": {
-                    "response_video_type": "mp4", # gif
+                    "response_video_type": self.service_config.response_video_type, # gif
                     "enterprise_plan": {"enabled": False}
                 },
-                "sd_model_name": model_name,
+                "model_name": model_name,
                 "height": height,
                 "width": width,
                 "steps": steps,
@@ -177,10 +181,10 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 "negative_prompt": negative_prompt,
                 "guidance_scale": self.service_config.guidance_scale,
                 "seed": seed,
-                "loras": self.service_config.loras,
-                "embeddings": self.service_config.embeddings,
+                #"loras": self.service_config.loras,
+                #"embeddings": self.service_config.embeddings,
                 "closed_loop": self.service_config.closed_loop,
-                "clip_skip": self.service_config.clip_skip
+                #"clip_skip": self.service_config.clip_skip
             }  
             # Remove None values from the payload to avoid sending null fields
             payload = {k: v for k, v in payload.items() if v is not None}
@@ -219,7 +223,110 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 # You can change the filename if needed
                 self.download_video(infos["videos"][0]["video_url"], file_name )
                 return file_name
+        else:
+            ASCIIColors.error("Task did not succeed")
         return None
+    
+    def pin_dimensions_frames_stable_diffusion(self, width, height, nframes):
+        """
+        Pins dimensions and frame count to valid ranges for Stable Diffusion processing.
+        
+        Args:
+            width (int): Width of the image. Pinned to [128, 2048].
+            height (int): Height of the image. Pinned to [128, 2048].
+            nframes (int): Number of frames. Pinned to 8 or 64 (nearest).
+        
+        Returns:
+            tuple: (width, height, nframes) with values pinned to valid ranges.
+        """
+        # Ensure inputs are integers (convert if possible, default to nearest boundary if invalid)
+        try:
+            width = int(width)
+        except (ValueError, TypeError):
+            width = 128  # Default to minimum if conversion fails
+        try:
+            height = int(height)
+        except (ValueError, TypeError):
+            height = 128  # Default to minimum if conversion fails
+        try:
+            nframes = int(nframes)
+        except (ValueError, TypeError):
+            nframes = 8  # Default to minimum if conversion fails
+        
+        # Pin width to [128, 2048]
+        width = max(128, min(2048, width))
+        
+        # Pin height to [128, 2048]
+        height = max(128, min(2048, height))
+        
+        # Pin nframes to nearest of 8 or 64
+        if nframes <= 8 or abs(nframes - 8) <= abs(nframes - 64):
+            nframes = 8
+        else:
+            nframes = 64
+        
+        # Return pinned parameters
+        return width, height, nframes
+
+    def pin_dimensions_stable_diffusion(self, width, height):
+        """
+        Pins dimensions to valid ranges for Stable Diffusion processing.
+        
+        Args:
+            width (int): Width of the image. Pinned to [128, 2048].
+            height (int): Height of the image. Pinned to [128, 2048].
+        
+        Returns:
+            tuple: (width, height) with values pinned to valid ranges.
+        """
+        # Ensure inputs are integers (convert if possible, default to nearest boundary if invalid)
+        try:
+            width = int(width)
+        except (ValueError, TypeError):
+            width = 128  # Default to minimum if conversion fails
+        try:
+            height = int(height)
+        except (ValueError, TypeError):
+            height = 128  # Default to minimum if conversion fails
+        
+        # Pin width to [128, 2048]
+        width = max(128, min(2048, width))
+        
+        # Pin height to [128, 2048]
+        height = max(128, min(2048, height))
+        
+        # Return pinned parameters
+        return width, height
+
+    def validate_frame_counts(self, prompts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Validates and pins frame counts for each prompt segment to valid ranges for Stable Diffusion.
+        
+        Args:
+            prompts (List[Dict[str, Any]]): List of dictionaries with "prompt" and "frames" keys.
+        
+        Returns:
+            List[Dict[str, Any]]: Updated prompts with pinned frame counts (8 or 64).
+        """
+        validated_prompts = []
+        for prompt_dict in prompts:
+            try:
+                nframes = int(prompt_dict["frames"])
+            except (ValueError, TypeError):
+                nframes = 8  # Default to minimum if conversion fails
+            
+            # Pin nframes to nearest of 8 or 64
+            if nframes <= 8 or abs(nframes - 8) <= abs(nframes - 64):
+                nframes = 8
+            else:
+                nframes = 64
+                
+            validated_prompts.append({
+                "prompt": prompt_dict["prompt"],
+                "frames": nframes
+            })
+        
+        return validated_prompts
     def pin_dimensions_frames_wan_t2v(self, width, height, nframes):
         # Supported widths
         standard_widths = [480, 720, 832, 1024, 1280]
@@ -283,97 +390,116 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         return pinned_width, pinned_height, pinned_nframes, pinned_steps
     
 
-    def generate_video_by_frames(self, prompts: List[str], frames: List[int], negative_prompt: str, fps: int = 8, 
-                        sd_model_name: str = "",
-                        height: int = 512,
-                        width: int = 512,
-                        steps: int = 20,
-                        seed: int = -1,
-                        output_folder:str | Path =None,
-                       ) -> str:
+    def generate_video_by_frames(
+            self,
+            prompts: List[Dict[str, Any]],  # List of {"prompt": str, "frames": int}
+            model_name: str = "",
+            height: int = 512,
+            width: int = 512,
+            steps: int = 20,
+            negative_prompt: Optional[str] = None,
+            seed: int = -1,
+            output_folder: str | Path = None,
+            output_file_name: str = None
+        ) -> str:
         """
-        Generates a video from a list of prompts and corresponding frames.
+        Generates a video from multiple text prompts with specified frame counts using Stable Diffusion via Novita.ai API.
 
         Args:
-            prompts (List[str]): List of text prompts for each frame.
-            frames (List[int]): List of frame indices corresponding to each prompt.
-            negative_prompt (str): Text describing elements to avoid in the video.
-            fps (int): Frames per second. Default is 8.
-            num_inference_steps (int): Number of steps for the model to infer. Default is 50.
-            guidance_scale (float): Controls how closely the model adheres to the prompt. Default is 6.0.
-            seed (Optional[int]): Random seed for reproducibility. Default is None.
+            prompts (List[Dict[str, Any]]): List of dictionaries containing "prompt" (str) and "frames" (int)
+            model_name (str): Name of the model checkpoint. Uses default if empty
+            height (int): Height of the video, range [256, 1024]
+            width (int): Width of the video, range [256, 1024]
+            steps (int): Number of denoising steps, range [1, 50]
+            negative_prompt (Optional[str]): Text input to avoid in the video
+            seed (int): Random seed for reproducibility. Defaults to -1
+            output_folder (str | Path): Directory to save the video
+            output_file_name (str): Custom name for the output video file
 
         Returns:
-            str: The path to the generated video.
+            str: Path to the generated video file or None if failed
         """
-        if sd_model_name=="":
-            sd_model_name = self.sd_model_name
         if output_folder is None:
             output_folder = self.output_folder
 
-
-        url = f"{self.base_url}/txt2video"
-        headers = {
-            "Authorization": f"Bearer {self.service_config.api_key}",
-            "Content-Type": "application/json",
-        }
-        print(response.text)
-        if model_name=="":
+        # Pin dimensions to valid ranges
+        width, height = self.pin_dimensions_stable_diffusion(width, height)
+        
+        # Validate and pin frame counts for each prompt
+        validated_prompts = self.validate_frame_counts(prompts)
+        
+        if model_name == "":
             model_name = self.sd_model_name
 
-
         url = f"{self.base_url}/txt2video"
         headers = {
             "Authorization": f"Bearer {self.service_config.api_key}",
             "Content-Type": "application/json",
         }
+        
+        # Prepare prompts in the required format
+        formatted_prompts = [
+            {
+                "frames": prompt_dict["frames"],
+                "prompt": prompt_dict["prompt"]
+            } for prompt_dict in validated_prompts
+        ]
+        
         payload = {
             "extra": {
-                "response_video_type": "mp4", # gif
+                "response_video_type": "mp4",
                 "enterprise_plan": {"enabled": False}
             },
             "sd_model_name": model_name,
             "height": height,
             "width": width,
             "steps": steps,
-            "prompts": prompts, #[{"frames": nb_frames,"prompt": prompt}],
+            "prompts": formatted_prompts,
             "negative_prompt": negative_prompt,
             "guidance_scale": self.service_config.guidance_scale,
             "seed": seed,
-            "loras": self.service_config.loras,
-            "embeddings": self.service_config.embeddings,
             "closed_loop": self.service_config.closed_loop,
             "clip_skip": self.service_config.clip_skip
-        }  
-        # Remove None values from the payload to avoid sending null fields
+        }
+        
+        # Remove None values from payload
         payload = {k: v for k, v in payload.items() if v is not None}
 
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        response.raise_for_status()
         task_id = response.json().get("task_id")
 
-
+        # Monitor task progress
         url = f"https://api.novita.ai/v3/async/task-result?task_id={task_id}"
-
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.service_config.api_key}",
         }
+        
         done = False
+        pbar = tqdm(total=100, desc="Generating video")
         while not done:
             response = requests.request("GET", url, headers=headers)
             infos = response.json()
-            if infos["task"]["status"]=="TASK_STATUS_SUCCEED" or infos["task"]["status"]=="TASK_STATUS_FAILED":
+            pbar.n = infos["task"]["progress_percent"]
+            pbar.refresh()
+            if infos["task"]["status"] in ["TASK_STATUS_SUCCEED", "TASK_STATUS_FAILED"]:
                 done = True
             time.sleep(1)
-        if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
+
+        if infos["task"]["status"] == "TASK_STATUS_SUCCEED":
             if output_folder:
                 output_folder = Path(output_folder)
-                file_name = output_folder/find_next_available_filename(output_folder, "vid_novita_","mp4")  # You can change the filename if needed
-                self.download_video(infos["videos"][0]["video_url"], file_name )
-                return file_name
-        return None
-
+                if output_file_name:
+                    file_name = output_folder / output_file_name
+                else:
+                    file_name = output_folder / find_next_available_filename(output_folder, "vid_novita_", "mp4")
+                
+                self.download_video(infos["videos"][0]["video_url"], file_name)
+                return str(file_name)
+        else:
+            ASCIIColors.error("Task did not succeed")
+            return None
     def get_task_result(self, task_id: str) -> Dict[str, Any]:
         """
         Retrieves the result of a video generation task using the task_id.

@@ -9,6 +9,7 @@ import json
 import os
 import time
 from ascii_colors import ASCIIColors
+from tqdm import tqdm
 class LollmsNovitaAITextToVideo(LollmsTTV):
     """
     A binding for the Novita.ai Text-to-Video API.
@@ -199,9 +200,12 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             "Authorization": f"Bearer {self.service_config.api_key}",
         }
         done = False
+        pbar = tqdm(total=100, desc="Generating image")
         while not done:
             response = requests.request("GET", url, headers=headers)
             infos = response.json()
+            pbar.n = infos["task"]["progress_percent"]
+            pbar.refresh()
             if infos["task"]["status"]=="TASK_STATUS_SUCCEED" or infos["task"]["status"]=="TASK_STATUS_FAILED":
                 done = True
             time.sleep(1)

@@ -21,8 +21,8 @@ import platform
 from dataclasses import dataclass
 from PIL import Image, PngImagePlugin
 from enum import Enum
-from typing import List, Dict, Any
-
+from typing import List, Dict, Tuple
+import random
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
 from lollms.utilities import PackageManager, find_next_available_filename
@@ -48,6 +48,7 @@ class LollmsNovitaAi(LollmsTTI):
         api_key = os.getenv("OPENAI_KEY","")
         service_config = TypedConfig(
             ConfigTemplate([
+                {"name":"engine","type":"str","value":"stable-diffusion","options":["stable-diffusion", "flux-1-schnell"]},
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
                 {"name":"model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"},
                 {"name":"n_frames","type":"int","value":85, "help":"The number of frames in the video"},
@@ -69,7 +70,8 @@ class LollmsNovitaAi(LollmsTTI):
 
         super().__init__("novita_ai", app, service_config, output_folder)
         models = self.getModels()
-        service_config.config_template["model_name"]["options"] = [model["model_name"] for model in models if model["base_model_type"]==""]
+        # if model["base_model_type"]==""
+        service_config.config_template["model_name"]["options"] = ["arcaneDiffusion_v3_1016.ckpt"] + [model["model_name"] for model in models]
 
     def getModels(self):
         """
@@ -87,7 +89,28 @@ class LollmsNovitaAi(LollmsTTI):
 
     def settings_updated(self):
         pass
+    def pinn_width_height(self, width: int, height: int) -> Tuple[int, int]:
+        """
+        Pins the width and height to the valid range [128, 2048].
 
+        Args:
+            width (int): The desired width of the image.
+            height (int): The desired height of the image.
+
+        Returns:
+            Tuple[int, int]: A tuple containing the pinned width and height.
+        """
+        # Define the valid range for width and height
+        MIN_SIZE = 128
+        MAX_SIZE = 2048
+
+        # Pin the width to the valid range
+        pinned_width = max(MIN_SIZE, min(width, MAX_SIZE))
+
+        # Pin the height to the valid range
+        pinned_height = max(MIN_SIZE, min(height, MAX_SIZE))
+
+        return pinned_width, pinned_height
     def download_image(self, image_url: str, save_path: Path) -> None:
         """
         Downloads the generated video from the provided URL and saves it to the specified path.
@@ -114,85 +137,133 @@ class LollmsNovitaAi(LollmsTTI):
                 output_folder=None,
                 output_file_name=None
                 ):
-            url = "https://api.novita.ai/v3/async/txt2img"
-
+            width, height = self.pinn_width_height(width, height)
             sampler_name = sampler_name if sampler_name else self.service_config.sampler
             scale = scale if scale else self.service_config.guidance_scale
             steps = steps if steps else self.service_config.steps
             seed = seed if seed else self.service_config.seed
             output_folder = output_folder if output_folder else self.output_folder
-            
-            payload = {
-                "extra": {
+            if self.service_config.engine=="stable-diffusion":
+                url = "https://api.novita.ai/v3/async/txt2img"
+
+                payload = {
+                    "extra": {
+                        "response_image_type": "png",
+                    },
+                    "request": {
+                        "model_name": self.service_config.model_name,
+                        "prompt": positive_prompt,
+                        "width": width,
+                        "height": height,
+                        "image_num": 1,
+                        "steps": steps,
+                        "guidance_scale": scale,
+                        "sampler_name": sampler_name,
+                        "negative_prompt": negative_prompt,
+                        #"sd_vae": ,
+                        "seed": seed,
+                        #"loras": [
+                        #    {
+                        #        "model_name": "<string>",
+                        #        "strength": {}
+                        #    }
+                        #],
+                        #"embeddings": [{"model_name": "<string>"}],
+                        #"hires_fix": {
+                        #    "target_width": 123,
+                        #    "target_height": 123,
+                        #    "strength": {},
+                        #    "upscaler": "<string>"
+                        #},
+                        #"refiner": {"switch_at": {}},
+                        "enable_transparent_background": self.service_config.enable_transparent_background,
+                        "restore_faces": True
+                    }
+                }
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.service_config.api_key}"
+                }
+
+                response = requests.request("POST", url, json=payload, headers=headers)
+                try:
+                    response.raise_for_status()  # Raise an exception for HTTP errors
+                except Exception as ex:
+                    trace_exception(ex)
+                    infos = response.json()
+                    try:
+                        raise Exception(infos["message"]+"\nDetails:\n"+infos["metadata"]["details"])
+                    except:
+                        raise Exception(infos["message"]+"\nDetails:\n")
+                    
+                infos = response.json()
+                task_id = infos.get("task_id")
+                url = f"https://api.novita.ai/v3/async/task-result?task_id={task_id}"
+
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.service_config.api_key}",
+                }
+                done = False
+                pbar = tqdm(total=100, desc="Generating image")
+                while not done:
+                    response = requests.request("GET", url, headers=headers)
+                    infos = response.json()
+                    pbar.n = infos["task"]["progress_percent"]
+                    pbar.refresh()
+                    if infos["task"]["status"]=="TASK_STATUS_SUCCEED" or infos["task"]["status"]=="TASK_STATUS_FAILED":
+                        done = True
+                    time.sleep(1)
+                if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
+                    if output_folder:
+                        output_folder = Path(output_folder)
+                        if output_file_name:
+                            file_name = output_folder/output_file_name # You can change the filename if needed
+                        else:
+                            file_name = output_folder/find_next_available_filename(output_folder, "img_novita_","png")  # You can change the filename if needed
+                        self.download_image(infos["images"][0]["image_url"], file_name )
+                        return file_name, {"positive_prompt":positive_prompt}
+                    else:
+                        return None, {"error":"Failed to generate the image. No output folder set!"}
+
+                return None, {"error":"Failed to generate the image"}
+            elif self.service_config.engine=="flux-1-schnell":
+                url = "https://api.novita.ai/v3beta/flux-1-schnell"
+
+                payload = {
                     "response_image_type": "png",
-                },
-                "request": {
-                    "model_name": self.service_config.model_name,
                     "prompt": positive_prompt,
+                    "seed": seed if seed>=0 else random.randint(0,4294967295),
+                    "steps": steps,
                     "width": width,
                     "height": height,
-                    "image_num": 1,
-                    "steps": steps,
-                    "guidance_scale": scale,
-                    "sampler_name": sampler_name,
-                    "negative_prompt": negative_prompt,
-                    #"sd_vae": ,
-                    "seed": seed,
-                    #"loras": [
-                    #    {
-                    #        "model_name": "<string>",
-                    #        "strength": {}
-                    #    }
-                    #],
-                    #"embeddings": [{"model_name": "<string>"}],
-                    #"hires_fix": {
-                    #    "target_width": 123,
-                    #    "target_height": 123,
-                    #    "strength": {},
-                    #    "upscaler": "<string>"
-                    #},
-                    #"refiner": {"switch_at": {}},
-                    "enable_transparent_background": self.service_config.enable_transparent_background,
-                    "restore_faces": True
+                    "image_num": 1
                 }
-            }
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.service_config.api_key}"
-            }
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.service_config.api_key}"
+                }
 
-            response = requests.request("POST", url, json=payload, headers=headers)
-            try:
-                response.raise_for_status()  # Raise an exception for HTTP errors
-            except Exception as ex:
-                trace_exception(ex)
-                raise Exception(response["content"]["text"])
-            task_id = response.json().get("task_id")
-
-
-            url = f"https://api.novita.ai/v3/async/task-result?task_id={task_id}"
-
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.service_config.api_key}",
-            }
-            done = False
-            while not done:
-                response = requests.request("GET", url, headers=headers)
-                infos = response.json()
-                if infos["task"]["status"]=="TASK_STATUS_SUCCEED" or infos["task"]["status"]=="TASK_STATUS_FAILED":
-                    done = True
-                time.sleep(1)
-            if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
+                response = requests.request("POST", url, json=payload, headers=headers)
+                try:
+                    response.raise_for_status()  # Raise an exception for HTTP errors
+                    infos = response.json()
+                except Exception as ex:
+                    trace_exception(ex)
+                    infos = response.json()
+                    try:
+                        raise Exception(infos["message"]+"\nDetails:\n"+infos["metadata"]["details"])
+                    except:
+                        raise Exception(infos["message"])
                 if output_folder:
                     output_folder = Path(output_folder)
                     if output_file_name:
                         file_name = output_folder/output_file_name # You can change the filename if needed
                     else:
                         file_name = output_folder/find_next_available_filename(output_folder, "img_novita_","png")  # You can change the filename if needed
-                    self.download_image(infos["images"][0]["image_url"], file_name )
+                    self.download_image(infos["images"][0]["image_url"], file_name )    
                     return file_name, {"positive_prompt":positive_prompt}
-            return None, {"error":"Failed to generate the image"}
+
     
     def paint_from_images(self, positive_prompt: str, images: List[str], negative_prompt: str = "") -> List[Dict[str, str]]:
         pass

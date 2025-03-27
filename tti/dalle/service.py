@@ -33,6 +33,10 @@ from tqdm import tqdm
 import threading
 from io import BytesIO
 import os
+import pipmaster as pm
+if not pm.is_installed("openai"):
+    pm.install("openai")
+import openai
 
 
 class LollmsDalle(LollmsTTI):
@@ -76,11 +80,7 @@ class LollmsDalle(LollmsTTI):
                 ):
         if output_folder is None:
             output_folder = self.output_folder
-        if generation_engine is None:
-            generation_engine = self.service_config.generation_engine
-        if not PackageManager.check_package_installed("openai"):
-            PackageManager.install_package("openai")
-        import openai
+        generation_engine = self.service_config.generation_engine
         openai.api_key = self.service_config.api_key
         if generation_engine=="dall-e-2":
             supported_resolutions = [

@@ -205,7 +205,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             "Authorization": f"Bearer {self.service_config.api_key}",
         }
         done = False
-        pbar = tqdm(total=100, desc="Generating image")
+        pbar = tqdm(total=100, desc="Generating video")
         while not done:
             response = requests.request("GET", url, headers=headers)
             infos = response.json()

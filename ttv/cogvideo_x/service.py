@@ -6,7 +6,7 @@ import pipmaster as pm
 
 # Install required libraries if not already present
 if not pm.is_installed("torch"):
-    pm.install_multiple(["torch","torchvision"," torchaudio"], "https://download.pytorch.org/whl/cu118")  # Adjust CUDA version as needed
+    pm.install_multiple(["torch","torchvision"," torchaudio"], "https://download.pytorch.org/whl/cu124")  # Adjust CUDA version as needed
 if not pm.is_installed("diffusers"):
     pm.install("diffusers")
 if not pm.is_installed("transformers"):

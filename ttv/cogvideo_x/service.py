@@ -91,7 +91,9 @@ class LollmsCogVideoX(LollmsTTV):
         steps: int = 50,
         seed: int = -1,
         nb_frames: int = 49,
-        output_dir: str | Path = None,
+        fps:int=8,
+        output_folder:str | Path =None,
+        output_file_name=None,
     ) -> str:
         """
         Generates a video from a text prompt using CogVideoX.
@@ -105,12 +107,13 @@ class LollmsCogVideoX(LollmsTTV):
             steps (int): Number of inference steps (default 50).
             seed (int): Random seed (default -1 for random).
             nb_frames (int): Number of frames (default 49, ~6 seconds at 8 fps).
-            output_dir (str | Path): Optional custom output directory.
+            fps(int): Number of frames persecond
+            output_folder (str | Path): Optional custom output directory.
 
         Returns:
             str: Path to the generated video file.
         """
-        output_path = Path(output_dir) if output_dir else self.output_folder
+        output_path = Path(output_folder) if output_folder else self.output_folder
         output_path.mkdir(exist_ok=True, parents=True)
         output_filename= None
 
@@ -138,9 +141,12 @@ class LollmsCogVideoX(LollmsTTV):
         try:
             ASCIIColors.info("Generating video with CogVideoX...")
             start_time = time.time()
-            video_frames = self.pipeline(**gen_params).frames[0]  # CogVideoX returns a list of frame batches
-            output_filename = find_next_available_filename(output_path, "cogvideox_output_",".mp4")
-            export_to_video(video_frames, output_filename, fps=8)
+            video_frames = self.pipeline(**gen_params).frames[0]  # CogVideoX returns a list of frame 
+            if output_file_name is None:
+                output_filename = find_next_available_filename(output_path, "cogvideox_output_",".mp4")
+            else:
+                output_filename = output_path/output_file_name
+            export_to_video(video_frames, output_filename, fps=fps)
             elapsed_time = time.time() - start_time
             ASCIIColors.success(f"Video generated and saved to {output_filename} in {elapsed_time:.2f} seconds")
         except Exception as e:

@@ -83,6 +83,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         steps: int = 20,
         seed: int = -1,
         nb_frames: int = None,
+        fps:int=8,
         output_folder:str | Path =None,
         output_file_name=None
     ) -> str:

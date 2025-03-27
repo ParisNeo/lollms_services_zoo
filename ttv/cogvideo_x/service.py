@@ -17,6 +17,8 @@ if not pm.is_installed("imageio-ffmpeg"):
     pm.install("imageio-ffmpeg")
 if not pm.is_version_higher("accelerate","0.26.0"):
     pm.install("accelerate")
+if not pm.is_installed("sentencepiece"):
+    pm.install("sentencepiece")
 
 
 import torch

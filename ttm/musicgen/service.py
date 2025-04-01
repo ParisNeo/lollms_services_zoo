@@ -210,8 +210,6 @@ class MusicGenTTM(LollmsTTM):
             #     app.InfoMessage("PyTorch with CUDA support found.")
             # elif check_torch_mps():
             #     app.InfoMessage("PyTorch with MPS support found.")
-
-            app.InfoMessage("MusicGen binding dependencies verified successfully.")
             return True
 
     @staticmethod

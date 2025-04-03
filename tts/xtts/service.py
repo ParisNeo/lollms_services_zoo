@@ -12,7 +12,6 @@ from lollms.paths import LollmsPaths
 from lollms.utilities import PackageManager, find_first_available_file_index, add_period
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.tts import LollmsTTS
-from lollms.utilities import run_pip_in_env
 from typing import List
 import threading
 from packaging import version
@@ -88,6 +87,12 @@ class LollmsXTTS(LollmsTTS):
                     "value": "alloy",
                     "help": "The voice to use for text-to-speech. Options: 'alloy', 'echo', 'fable', 'nova', 'shimmer'."
                 },
+                {
+                    "name": "freq",
+                    "type": "int",
+                    "value": 22050,
+                    "help": "The output frequency"
+                },
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
@@ -99,15 +104,7 @@ class LollmsXTTS(LollmsTTS):
         self.voices_folders = [voices_folder] + [Path(__file__).parent/"voices"]
         voices = self.get_voices()
         service_config.config_template["model"]["options"]=voices
-
-        
-    def settings_updated(self):
-        voices = self.get_voices()
-        self.service_config.config_template["model"]["options"]=voices
-
-    def __init__(self, app: LollmsApplication, voices_folders: List[str|Path], freq = 22050):
-        super().__init__("lollms_xtts", app)
-        self.freq = freq
+        self.freq = self.service_config.freq
         self.generation_threads = {}
         self.stop_event = threading.Event()
 
@@ -126,22 +123,11 @@ class LollmsXTTS(LollmsTTS):
         self.play_obj = None
         self.thread = None        
         self.ready = True
+        
+    def settings_updated(self):
+        voices = self.get_voices()
+        self.service_config.config_template["model"]["options"]=voices
 
-    def install(lollms_app: LollmsApplication):
-        ASCIIColors.green("LollmsXTTS installation started")
-        # Here you can perform installation of needed things, or create configuration files or download needed assets etc.
-        run_pip_in_env("TTS")
-        run_pip_in_env("simpleaudio")
-
-    @staticmethod
-    def verify(lollms_paths: LollmsPaths) -> bool:
-        # Verify that the service is installed either by verifying the libraries are installed or that some files or folders exist
-        try:
-            import TTS
-            import simpleaudio
-            return True
-        except ImportError:
-            return False
 
     @staticmethod
     def get(app: LollmsApplication) -> 'LollmsXTTS':

@@ -145,11 +145,11 @@ class LollmsXTTS(LollmsTTS):
         :raises FileNotFoundError: If the speaker file is not found in any of the folders.
         """
         for folder in self.voices_folders:
-            potential_speaker_wav = Path(folder) / f"{speaker}.wav"
+            potential_speaker_wav = Path(folder) / f"{speaker}"
             if potential_speaker_wav.exists():
                 return potential_speaker_wav
         
-        raise FileNotFoundError(f"Speaker file '{speaker}.wav' not found in any of the specified folders.")
+        raise FileNotFoundError(f"Speaker file '{speaker}' not found in any of the specified folders.")
 
     def tts_file(self, text, file_name_or_path, speaker=None, language="en") -> str:
         speaker_wav = None

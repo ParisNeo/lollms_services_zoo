@@ -1,0 +1,24 @@
+class_name: LollmsGemini
+caption: Google Gemini
+help: |
+  Google Gemini is a family of multimodal AI models developed by Google, accessible via API. This binding utilizes the Gemini API, potentially including models capable of generating images from text prompts.
+
+  **Key Features:**
+  - Leverages Google's state-of-the-art multimodal AI models.
+  - Generates content, including images (depending on the selected model and API capabilities), based on text descriptions.
+  - Integration via Google AI Studio API key.
+
+  **Usage Instructions:**
+  - Obtain an API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+  - Set the API key in the LoLLMs binding configuration settings (or via the `GOOGLE_API_KEY` environment variable).
+  - Select an appropriate Gemini model that supports image generation (e.g., specific experimental or future versions - check Google's documentation).
+  - Provide text prompts to generate images.
+
+  **Limitations:**
+  - Requires a Google account and a valid API key from Google AI Studio.
+  - Subject to Google Cloud's usage policies, quotas, content restrictions, and potential costs.
+  - Image generation capabilities are dependent on the specific Gemini model chosen and the features exposed through the current API version. Not all Gemini models may support image generation.
+  - Negative prompts might not be explicitly supported or may be handled differently depending on the model.
+  - Image-to-image generation (`paint_from_images`) is not currently implemented in this binding.
+
+  For more details on Gemini models and their capabilities, refer to the [Google AI documentation](https://ai.google.dev/models/gemini).

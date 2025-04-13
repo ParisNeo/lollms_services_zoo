@@ -199,11 +199,12 @@ class LollmsXAI(LollmsTTI):
 
 
             # Make the API call
+            
             ASCIIColors.info(f"Generating image with prompt: {positive_prompt}")
             start_time = time.time()
             response = self.client.images.generate(
                 model="grok-2-image",  # Fixed model for xAI image generation
-                prompt=positive_prompt,
+                prompt=positive_prompt[:1024],
                 n=num_images,
                 response_format=response_format
             )

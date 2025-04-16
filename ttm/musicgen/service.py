@@ -200,7 +200,7 @@ class MusicGenTTM(LollmsTTM):
                 missing.append(package)
 
         if missing:
-            app.WarningMessage(f"MusicGen binding verification failed. Missing packages: {', '.join(missing)}")
+            app.warning(f"MusicGen binding verification failed. Missing packages: {', '.join(missing)}")
             return False
         else:
             # Optional: More specific check, e.g., for torch version or CUDA
@@ -379,11 +379,11 @@ class MusicGenTTM(LollmsTTM):
                 # Note: We do NOT pass the generator object to model.generate() itself.
                 if gen_seed is not None and gen_seed != -1:
                     generator = self.torch.Generator(device=self._device).manual_seed(gen_seed)
-                    self.app.InfoMessage(f"Using seed: {gen_seed}")
+                    self.app.info(f"Using seed: {gen_seed}")
                     # The generate function below will implicitly use this seeded generator state
                     # for the specified device.
                 else:
-                    self.app.InfoMessage("Using random seed.")
+                    self.app.info("Using random seed.")
                     # If no seed is set, PyTorch uses its default random state.
                     generator = None # Explicitly set to None for clarity, though not used below
 
@@ -398,7 +398,6 @@ class MusicGenTTM(LollmsTTM):
                     "do_sample": True, # Crucial for music generation
                     # Removed -> "generator": generator
                 }
-                self.app.InfoMessage(f"Generation parameters: {generation_args}")
 
                 with self.torch.no_grad(): # Disable gradient calculation for inference
                     audio_values = self.model.generate(**inputs, **generation_args)[0] # Get the first (and only) waveform

@@ -6,10 +6,16 @@ import subprocess
 import sys
 import torch
 import pipmaster as pm
+
+
+pm.install_if_missing("transformers")
+pm.install_if_missing("accelerate")
+pm.install_if_missing("imageio-ffmpeg")
+pm.install_if_missing("sentencepiece")
+
 if not(pm.is_version_exact("diffusers","0.32.2") or pm.is_version_higher("diffusers","0.32.2")):
-    pm.install_or_update("diffusers")
-from diffusers import CogVideoXPipeline, StableVideoDiffusionPipeline, MochiPipeline
-from diffusers.utils import export_to_video
+    pm.install_or_update("git+https://github.com/huggingface/diffusers")
+
 from lollms.app import LollmsApplication
 from lollms.main_config import LOLLMSConfig
 from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
@@ -17,41 +23,9 @@ from lollms.utilities import find_next_available_filename
 from lollms.ttv import LollmsTTV
 from ascii_colors import ASCIIColors, trace_exception
 
-# Install required libraries if not already present
-def install_dependencies():
-    packages = [
-        ("torch", "https://download.pytorch.org/whl/cu124"),
-        ("torchvision", "https://download.pytorch.org/whl/cu124"),
-        ("torchaudio", "https://download.pytorch.org/whl/cu124"),
-        ("diffusers", None),
-        ("transformers", None),
-        ("accelerate", None),
-        ("imageio-ffmpeg", None),
-        ("sentencepiece", None),
-    ]
 
-    for package, index in packages:
-        try:
-            __import__(package)
-        except ImportError:
-            print(f"Installing {package}...")
-            cmd = [sys.executable, "-m", "pip", "install", package]
-            if index:
-                cmd.extend(["--index-url", index])
-            subprocess.check_call(cmd)
-
-    # Check accelerate version
-    try:
-        import accelerate
-        from packaging import version
-        if version.parse(accelerate.__version__) < version.parse("0.26.0"):
-            print("Upgrading accelerate...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "accelerate"])
-    except ImportError:
-        print("Installing accelerate...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "accelerate"])
-
-install_dependencies()
+from diffusers import CogVideoXPipeline, StableVideoDiffusionPipeline, MochiPipeline
+from diffusers.utils import export_to_video
 
 class LollmsOpenVideoGen(LollmsTTV):
     """

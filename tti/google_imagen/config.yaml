@@ -1,5 +1,5 @@
-class_name: LollmsGoogle
-caption: Google Vertex AI Imagen
+class_name: LollmsGoogleGemini
+caption: Google Gemini
 help: |
   This binding utilizes Google Cloud's Vertex AI platform to generate images using the powerful Imagen family of models. It allows generating high-quality images directly from text prompts by leveraging Google's infrastructure.
 

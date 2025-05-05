@@ -290,7 +290,7 @@ class LollmsXAI(LollmsTTI):
             return None, {"error": f"An unexpected error occurred: {e}"}
 
 
-    def paint_from_images(self, positive_prompt: str, images: List[str], negative_prompt: str = "") -> List[Dict[str, str]]:
+    def paint_from_images(self, positive_prompt: str, images: List[str], negative_prompt: str = "") -> Tuple[Path | None, Dict | None]:
         """
         Image-to-image generation is not supported by the xAI /v1/images/generations endpoint.
         """

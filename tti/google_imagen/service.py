@@ -97,7 +97,7 @@ class LollmsGoogleGemini(LollmsTTI):
             {"name": "output_text_with_image", "type": "bool", "value": False, "help": "For Gemini: Include generated text in metadata."},
             {"name": "request_text_modality", "type": "bool", "value": False, "help": "For Gemini experimental: Request TEXT modality with IMAGE."},
         ])
-        service_config = TypedConfig(service_config_template, config or {})
+        service_config = TypedConfig(service_config_template)
         super().__init__("google_gemini", app, service_config, output_folder)
 
         self.client = None # Store the client instance

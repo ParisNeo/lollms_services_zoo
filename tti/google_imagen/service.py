@@ -330,7 +330,7 @@ class LollmsGoogleGemini(LollmsTTI):
                 response = self.client.models.generate_content(
                     model=model_name_config, # Use short name
                     contents=full_prompt,
-                    generation_config=content_config
+                    config=content_config
                 )
 
                 elapsed_time = time.time() - start_time
@@ -428,12 +428,6 @@ class LollmsGoogleGemini(LollmsTTI):
         except google_api_exceptions.InvalidArgument as e: return None, {"error": f"Invalid Argument: {e}"}
         except google_api_exceptions.ResourceExhausted as e: return None, {"error": f"Quota Exceeded: {e}"}
         except google_api_exceptions.FailedPrecondition as e: return None, {"error": f"Failed Precondition: {e}"}
-        except types.StopCandidateException as e: # Use types
-             f_reason = getattr(getattr(e, 'candidate', None), 'finish_reason', 'N/A')
-             return None, {"error": f"Generation Stopped. Reason: {f_reason}. {e}"}
-        except types.BlockedPromptException as e: # Use types
-             return None, {"error": f"Prompt Blocked. {e}"}
-        except requests.exceptions.RequestException as e: return None, {"error": f"Network Error: {e}"}
         except Exception as e:
             self.app.error(f"Unexpected error: {type(e).__name__}"); trace_exception(e)
             return None, {"error": f"Unexpected error: {type(e).__name__} - {e}"}
@@ -497,7 +491,7 @@ class LollmsGoogleGemini(LollmsTTI):
             response = self.client.models.generate_content(
                     model=model_name_config,
                     contents=contents,
-                    generation_config=content_config
+                    config=content_config
                 )
 
             elapsed_time = time.time() - start_time
@@ -581,12 +575,6 @@ class LollmsGoogleGemini(LollmsTTI):
              return None, {"error": f"Invalid Argument (img2img): Input: {input_image_path.name}. {e}"}
         except google_api_exceptions.ResourceExhausted as e: return None, {"error": f"Quota Exceeded (img2img): {e}"}
         except google_api_exceptions.FailedPrecondition as e: return None, {"error": f"Failed Precondition (img2img): {e}"}
-        except types.StopCandidateException as e: # Use types
-             f_reason = getattr(getattr(e, 'candidate', None), 'finish_reason', 'N/A')
-             return None, {"error": f"Generation Stopped (img2img). Reason: {f_reason}. {e}"}
-        except types.BlockedPromptException as e: # Use types
-             return None, {"error": f"Prompt Blocked (img2img). {e}"}
-        except requests.exceptions.RequestException as e: return None, {"error": f"Network Error (img2img): {e}"}
         except Exception as e:
             self.app.error(f"Unexpected error (img2img): {type(e).__name__}"); trace_exception(e)
             return None, {"error": f"Unexpected error (img2img): {type(e).__name__} - {e}"}

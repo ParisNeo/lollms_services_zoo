@@ -41,6 +41,9 @@ import shutil
 from tqdm import tqdm
 import threading
 from io import BytesIO
+import pipmaster as pm
+
+pm.ensure_packages({"google-genai",">=1.10.0"})
 
 # Ensure google-generativeai installation
 try:
@@ -91,7 +94,7 @@ class LollmsGoogleGemini(LollmsTTI):
 
         service_config_template = ConfigTemplate([
             {"name": "gemini_api_key", "type": "str", "value": default_api_key, "help": "Your Google Gemini API Key. Required."},
-            {"name": "model_name", "type": "str", "value": "imagen-3.0-generate-002", "options":["imagen-3.0-generate-002", "gemini-1.5-flash", "gemini-2.0-flash-exp-image-generation"], "help": "Generation model. Imagen uses generate_images, Gemini uses generate_content."},
+            {"name": "model_name", "type": "str", "value": "imagen-3.0-generate-002", "options":["imagen-3.0-generate-002", "gemini-1.5-flash", "gemini-2.0-flash-preview-image-generation"], "help": "Generation model. Imagen uses generate_images, Gemini uses generate_content."},
             {"name": "number_of_images", "type": "int", "value": 1, "min":1, "max":4, "help": "Images per request (Max 4 for Imagen 3). Only first image saved."},
             {"name": "aspect_ratio", "type": "str", "value":"1:1", "options":["1:1", "16:9", "9:16", "4:3", "3:4"], "help":"Image aspect ratio (Used for Imagen 3 call)."},
             {"name": "output_text_with_image", "type": "bool", "value": False, "help": "For Gemini: Include generated text in metadata."},
@@ -155,7 +158,7 @@ class LollmsGoogleGemini(LollmsTTI):
             for m in models:
                  model_info.append({
                      "name": m.name, "display_name": m.display_name,
-                     "supported_methods": m.supported_generation_methods
+                     "supported_methods": ["TEXT","IMAGE"]
                  })
                  ASCIIColors.info(f"  - {m.name} ({m.display_name}) Methods: {m.supported_generation_methods}")
             return model_info
@@ -315,9 +318,8 @@ class LollmsGoogleGemini(LollmsTTI):
                 self.app.info(f"Generating content with Gemini ({model_name_config})...\nPrompt: {short_desc(full_prompt)}")
 
                 content_config_params = {}
-                if model_name_config == "gemini-2.0-flash-exp-image-generation":
-                     modalities = ["IMAGE"]
-                     if self.service_config.request_text_modality: modalities.append("TEXT")
+                if model_name_config == "gemini-2.0-flash-preview-image-generation":
+                     modalities = ["IMAGE","TEXT"]
                      content_config_params['response_modalities'] = modalities
                      ASCIIColors.info(f"Using response_modalities: {modalities}")
                 else: # Try mime type for other Gemini

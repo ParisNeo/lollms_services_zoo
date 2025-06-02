@@ -160,7 +160,7 @@ class LollmsGoogleGemini(LollmsTTI):
                      "name": m.name, "display_name": m.display_name,
                      "supported_methods": ["TEXT","IMAGE"]
                  })
-                 ASCIIColors.info(f"  - {m.name} ({m.display_name}) Methods: {m.supported_generation_methods}")
+                 ASCIIColors.info(f"  - {m.name} ({m.display_name})")
             return model_info
         except Exception as e:
             self.app.error(f"Failed to process listed models: {e}")

@@ -187,7 +187,9 @@ class LollmsOpenAIGPTImage(LollmsTTI):
             self.app.HideBlockingMessage()
             return None, {"error": f"RateLimitError: {e}", "positive_prompt": positive_prompt}
         except openai.APIStatusError as e:
-            msg = json.loads(e.message)
+            json_start = e.message.find('{')
+            json_string = e.message[json_start:]
+            msg = json.loads(json_string)
             error_message = f"OpenAI API status error: {e.status_code} - {e.response} - {msg}"
             ASCIIColors.error(error_message)
             self.app.HideBlockingMessage()
